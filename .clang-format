@@ -1,0 +1,59 @@
+Language: Cpp
+BasedOnStyle: LLVM
+
+AlignConsecutiveDeclarations: true
+AlignConsecutiveBitFields: true
+AlignArrayOfStructures: Left
+AlignEscapedNewlines: Right
+AlignOperands: AlignAfterOperator
+
+BinPackArguments: true
+BinPackParameters: false
+
+AllowAllArgumentsOnNextLine: true
+AllowAllParametersOfDeclarationOnNextLine: true
+
+AlignAfterOpenBracket: BlockIndent
+
+AlwaysBreakTemplateDeclarations: true
+
+BraceWrapping:
+    AfterClass: false
+    AfterControlStatement: false
+    AfterEnum: false
+    AfterFunction: false
+    AfterNamespace: false
+    AfterStruct: false
+    AfterUnion: false
+    AfterExternBlock: false
+    BeforeCatch: false
+    BeforeElse: false
+    IndentBraces: false
+    SplitEmptyFunction: false
+    SplitEmptyNamespace: false
+BreakBeforeBraces: Custom
+
+BreakBeforeTernaryOperators: true
+
+BreakConstructorInitializers: AfterColon
+
+BreakStringLiterals: true
+
+ColumnLimit: 120
+
+CompactNamespaces: true
+
+PackConstructorInitializers: NextLine
+
+ConstructorInitializerIndentWidth: 4
+
+ContinuationIndentWidth: 4
+
+IndentPPDirectives: AfterHash
+
+IndentWidth: 4
+
+SortIncludes: false
+SortUsingDeclarations: false
+
+NamespaceIndentation: All
