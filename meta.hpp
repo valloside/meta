@@ -2,6 +2,7 @@
 
 #include <ranges>
 #include <meta>
+#include <type_traits>
 #include "span.hpp"
 
 namespace valloside::meta {
@@ -26,15 +27,16 @@ namespace valloside::meta {
             ptrdiff_t m_bytes{-1};
             ptrdiff_t m_bits{-1};
 
-            constexpr member_offset() = default;
-            constexpr member_offset(const std::meta::member_offset &off) : m_bytes(off.bytes), m_bits(off.bits) {}
-            constexpr member_offset &operator==(const std::meta::member_offset &off) {
+            constexpr member_offset() noexcept = default;
+            constexpr member_offset(const std::meta::member_offset &off) noexcept :
+                m_bytes(off.bytes), m_bits(off.bits) {}
+            constexpr member_offset &operator=(const std::meta::member_offset &off) noexcept {
                 return m_bytes = off.bytes, m_bits = off.bits, *this;
             }
-            constexpr auto operator<=>(const member_offset &) const = default;
+            constexpr auto operator<=>(const member_offset &) const noexcept = default;
 
-            constexpr bool is_valid() const { return m_bytes != -1 && m_bits != -1; }
-            constexpr      operator bool() const { return is_valid(); }
+            constexpr bool is_valid() const noexcept { return m_bytes != -1 && m_bits != -1; }
+            constexpr      operator bool() const noexcept { return is_valid(); }
         };
 
         // 变量、数据成员的信息
@@ -105,10 +107,13 @@ namespace valloside::meta {
         }
 
         template <std::meta::info R>
+        struct type_storage {
+            static constexpr type_info value{extract_name<R>(), extract_fields<R>()};
+        };
+
+        template <std::meta::info R>
         consteval auto make_type_info() -> const type_info & {
-            constexpr auto type_name = extract_name<R>();
-            constexpr auto fields = extract_fields<R>();
-            return std::define_static_array(std::views::single(type_info{type_name, fields}))[0];
+            return type_storage<R>::value;
         }
 
     } // namespace details
@@ -117,31 +122,32 @@ namespace valloside::meta {
         const details::object_info *m_object_info;
 
       public:
-        constexpr object(const details::object_info &info) : m_object_info(&info) {}
+        constexpr object(const details::object_info &info) noexcept : m_object_info(&info) {}
 
-        constexpr auto get_name() const -> std::string_view { return m_object_info->m_name; }
+        constexpr auto get_name() const noexcept -> std::string_view { return m_object_info->m_name; }
 
-        constexpr auto get_type() const -> type;
+        constexpr auto get_type() const noexcept -> type;
 
-        constexpr auto get_offset() const { return m_object_info->m_offset; }
+        constexpr auto get_offset() const noexcept { return m_object_info->m_offset; }
 
-        constexpr auto get_size() const { return m_object_info->m_size; }
+        constexpr auto get_size() const noexcept { return m_object_info->m_size; }
 
-        constexpr auto get_accessor() const { return m_object_info->m_accessor; }
+        constexpr auto get_accessor() const noexcept { return m_object_info->m_accessor; }
     };
 
     class type {
         const details::type_info *m_type_info;
 
       public:
-        constexpr type(const details::type_info &type_info) : m_type_info(&type_info) {}
-        constexpr type(nullptr_t) : m_type_info(nullptr) {}
+        constexpr type(const details::type_info &type_info) noexcept : m_type_info(&type_info) {}
+        constexpr type(nullptr_t) noexcept : m_type_info(nullptr) {}
 
-        constexpr auto get_name() const -> std::string_view { return m_type_info->m_name; }
+        constexpr auto get_name() const noexcept -> std::string_view { return m_type_info->m_name; }
 
         template <typename Callback>
             requires std::is_invocable_r_v<bool, Callback, const object &>
-        constexpr auto for_each_field(Callback &&callback) const {
+        constexpr auto
+        for_each_field(Callback &&callback) const noexcept(std::is_nothrow_invocable_v<Callback, const object &>) {
             for (auto &&field : m_type_info->m_fields.to_span()) {
                 if (!callback(object{field}))
                     return false;
@@ -149,12 +155,12 @@ namespace valloside::meta {
             return true;
         }
 
-        constexpr auto get_fields_info() const {
+        constexpr auto get_fields_info() const noexcept {
             return m_type_info->m_fields.to_span() |
                    std::views::transform([](auto &&field_impl) { return object{field_impl}; });
         }
 
-        constexpr auto get_field(std::string_view name) const -> std::optional<object> {
+        constexpr auto get_field(std::string_view name) const noexcept -> std::optional<object> {
             for (auto &&field : m_type_info->m_fields.to_span()) {
                 if (field.m_name == name) {
                     return object{field};
@@ -163,20 +169,14 @@ namespace valloside::meta {
             return std::nullopt;
         }
 
-        constexpr bool operator==(const type &other) const {
-            /*
-                我不太确定合不合理，不清楚标准里有没有相关说明，结果可能未定义，或未指明
-                但我暂时找不到其它简单的做法了，反正 clang 这边测试是没问题的
-             */
-            return m_type_info == other.m_type_info;
-        }
+        constexpr bool operator==(const type &other) const noexcept { return m_type_info == other.m_type_info; }
 
         template <std::meta::info R>
             requires(std::meta::is_type(R))
         friend consteval auto reflect();
     };
 
-    constexpr auto object::get_type() const -> type { return type{*m_object_info->m_type}; }
+    constexpr auto object::get_type() const noexcept -> type { return type{*m_object_info->m_type}; }
 
     constexpr struct null_obj_t {
     } null_obj;
@@ -208,9 +208,9 @@ namespace valloside::meta {
             bit_field_proxy m_bit_field_proxy;
             value_status    m_status;
 
-            constexpr value(nullptr_t) : m_ptr(nullptr), m_status(value_status::empty) {}
-            constexpr value(void *obj) : m_ptr(obj), m_status(value_status::variable) {}
-            constexpr value(void *obj, bit_field_proxy proxy) :
+            constexpr value(nullptr_t) noexcept : m_ptr(nullptr), m_status(value_status::empty) {}
+            constexpr value(void *obj) noexcept : m_ptr(obj), m_status(value_status::variable) {}
+            constexpr value(void *obj, bit_field_proxy proxy) noexcept :
                 m_ptr(obj), m_bit_field_proxy(proxy), m_status(value_status::bitfield) {}
         };
 
@@ -218,25 +218,25 @@ namespace valloside::meta {
         value m_value;
 
       public:
-        constexpr any(null_obj_t = null_obj) : m_type_info(nullptr), m_value(nullptr) {}
+        constexpr any(null_obj_t = null_obj) noexcept : m_type_info(nullptr), m_value(nullptr) {}
 
-        constexpr any(void *obj, const details::type_info &info) : m_type_info(info), m_value(obj) {}
-        constexpr any(void *obj, const type &info) : m_type_info(info), m_value(obj) {}
-        constexpr any(void *obj, bit_field_getter_t getter, bit_field_setter_t setter, const type &info) :
+        constexpr any(void *obj, const details::type_info &info) noexcept : m_type_info(info), m_value(obj) {}
+        constexpr any(void *obj, const type &info) noexcept : m_type_info(info), m_value(obj) {}
+        constexpr any(void *obj, bit_field_getter_t getter, bit_field_setter_t setter, const type &info) noexcept :
             m_type_info(info), m_value(obj, bit_field_proxy{getter, setter}) {}
 
         template <typename T>
-        constexpr any(T &obj, const details::type_info &info) :
+        constexpr any(T &obj, const details::type_info &info) noexcept :
             m_type_info(info), m_value(const_cast<void *>(static_cast<const void *>(&obj))) {}
         template <typename T>
-        constexpr any(T &obj, const type &info) :
+        constexpr any(T &obj, const type &info) noexcept :
             m_type_info(info), m_value(const_cast<void *>(static_cast<const void *>(&obj))) {}
         template <typename T>
-        constexpr any(T &obj, bit_field_getter_t getter, bit_field_setter_t setter, const type &info) :
+        constexpr any(T &obj, bit_field_getter_t getter, bit_field_setter_t setter, const type &info) noexcept :
             m_type_info(info),
             m_value(const_cast<void *>(static_cast<const void *>(&obj)), bit_field_proxy{getter, setter}) {}
 
-        auto get_raw_ptr() const -> void * { return m_value.m_ptr; }
+        auto get_raw_ptr() const noexcept -> void * { return m_value.m_ptr; }
 
         template <typename T>
         auto as() const -> T & {
@@ -273,7 +273,7 @@ namespace valloside::meta {
             return *this;
         }
 
-        auto field(std::string_view name) const -> any {
+        auto field(std::string_view name) const noexcept -> any {
             auto field = m_type_info.get_field(name);
             if (field) {
                 return field->get_accessor()(m_value.m_ptr);
@@ -282,19 +282,19 @@ namespace valloside::meta {
             }
         }
 
-        auto get_type_info() const -> type { return m_type_info; }
+        auto get_type_info() const noexcept -> type { return m_type_info; }
 
         // auto method(std::string_view name) const -> any {}
 
-        constexpr bool empty() const { return m_value.m_status != value_status::empty; }
-        constexpr      operator bool() const { return empty(); }
-        constexpr bool is_bit_field() const { return m_value.m_status == value_status::bitfield; }
+        constexpr bool empty() const noexcept { return m_value.m_status != value_status::empty; }
+        constexpr      operator bool() const noexcept { return empty(); }
+        constexpr bool is_bit_field() const noexcept { return m_value.m_status == value_status::bitfield; }
     };
 
     namespace details {
 
         template <std::meta::info Rclass, size_t N, const type_info *t>
-        auto accessor_impl(void *obj) -> any {
+        auto accessor_impl(void *obj) noexcept -> any {
             using Class = typename[:Rclass:];
             constexpr auto r_memb =
                 define_static_array(nonstatic_data_members_of(Rclass, std::meta::access_context::unchecked()))[N];
@@ -344,7 +344,7 @@ namespace valloside::meta {
     } // namespace details
 
     template <typename T>
-    constexpr any operator|(T &obj, const type &info) {
+    constexpr any operator|(T &obj, const type &info) noexcept {
         return any{obj, info};
     }
 
@@ -361,7 +361,7 @@ namespace valloside::meta {
     }
 
     template <typename T>
-    auto reflect(T &v) -> any {
+    auto reflect(T &v) noexcept -> any {
         return v | reflect<T>();
     }
 

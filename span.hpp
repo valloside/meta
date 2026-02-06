@@ -17,12 +17,12 @@ namespace valloside::meta::details {
         const char *m_str;
         size_t      m_len;
 
-        consteval structural_string_view() : m_str(nullptr), m_len(0) {}
-        consteval structural_string_view(const char *str, size_t len) : m_str(str), m_len(len) {}
-        consteval structural_string_view(std::string_view str) : m_str(str.data()), m_len(str.size()) {}
+        consteval structural_string_view() noexcept : m_str(nullptr), m_len(0) {}
+        consteval structural_string_view(const char *str, size_t len) noexcept : m_str(str), m_len(len) {}
+        consteval structural_string_view(std::string_view str) noexcept : m_str(str.data()), m_len(str.size()) {}
 
-        constexpr      operator std::string_view() const { return std::string_view(m_str, m_len); }
-        constexpr auto to_string_view() const { return std::string_view(m_str, m_len); }
+        constexpr      operator std::string_view() const noexcept { return std::string_view(m_str, m_len); }
+        constexpr auto to_string_view() const noexcept { return std::string_view(m_str, m_len); }
     };
 
     /*
@@ -33,12 +33,12 @@ namespace valloside::meta::details {
         T     *m_data;
         size_t m_size;
 
-        consteval structural_span() : m_data(nullptr), m_size(0) {}
-        consteval structural_span(T *data, size_t size) : m_data(data), m_size(size) {}
-        consteval structural_span(std::span<T> span) : m_data(span.data()), m_size(span.size()) {}
+        consteval structural_span() noexcept : m_data(nullptr), m_size(0) {}
+        consteval structural_span(T *data, size_t size) noexcept : m_data(data), m_size(size) {}
+        consteval structural_span(std::span<T> span) noexcept : m_data(span.data()), m_size(span.size()) {}
 
-        constexpr      operator std::span<T>() const { return std::span(m_data, m_size); }
-        constexpr auto to_span() const { return std::span(m_data, m_size); }
+        constexpr      operator std::span<T>() const noexcept { return std::span(m_data, m_size); }
+        constexpr auto to_span() const noexcept { return std::span(m_data, m_size); }
     };
 
-} // namespace meta::details
+} // namespace valloside::meta::details
